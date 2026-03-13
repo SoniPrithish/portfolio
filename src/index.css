@@ -35,7 +35,8 @@
 html,
 body,
 #root {
-  min-height: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -378,19 +379,57 @@ button:disabled {
 }
 
 .experience-shell {
-  min-height: 100svh;
+  height: 100svh;
+  overflow: hidden;
   background: #050907;
+  display: flex;
+  flex-direction: column;
+}
+
+.experience-split {
+  display: flex;
+  flex: 1;
+  min-height: 0; /* Important for flex child scrolling */
+  width: 100%;
+}
+
+.experience-sidebar {
+  flex: 0 0 400px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--line);
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  z-index: 10;
+}
+
+.sidebar-brand h1 {
+  font-size: 3.5rem;
+  line-height: 1;
+  margin: 0.5rem 0;
+  letter-spacing: 0.12em;
+}
+
+.sidebar-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: auto;
 }
 
 .experience-stage {
   position: relative;
-  min-height: 100svh;
+  flex: 1;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
 }
 
 .experience-canvas {
   width: 100%;
-  height: 100svh;
+  height: 100%;
   touch-action: none;
 }
 
@@ -409,25 +448,6 @@ button:disabled {
 
 .experience-glow {
   background: radial-gradient(circle at 50% 20%, rgba(255, 214, 149, 0.06), transparent 35%);
-}
-
-.hud-card {
-  position: absolute;
-  z-index: 4;
-  padding: 1rem 1.1rem;
-  max-width: min(360px, calc(100vw - 2rem));
-  backdrop-filter: blur(16px);
-}
-
-.hud-card--stats {
-  top: 6.7rem;
-  left: 1rem;
-}
-
-.hud-card--controls {
-  top: 6.7rem;
-  right: 1rem;
-  width: min(340px, calc(100vw - 2rem));
 }
 
 .stat-grid {
@@ -518,13 +538,11 @@ button:disabled {
 }
 
 .spin-selector {
-  position: absolute;
-  left: 1rem;
-  bottom: 1rem;
-  z-index: 4;
-  width: min(280px, calc(100vw - 2rem));
+  width: 100%;
   padding: 0.95rem;
-  backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
 }
 
 .spin-selector__header {
@@ -644,6 +662,22 @@ button:disabled {
   right: 1rem;
 }
 
+.intro-challenge-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.intro-challenge-banner p {
+  color: var(--text-faint);
+  font-size: 0.9rem;
+  margin-top: 0.3rem;
+  text-transform: none;
+  font-family: var(--sans);
+  letter-spacing: normal;
+}
+
 .mobile-shot-bar {
   left: 50%;
   bottom: 1rem;
@@ -688,35 +722,26 @@ button:disabled {
     grid-template-columns: 1fr;
     justify-items: start;
   }
-
-  .hud-card--controls,
-  .guided-banner,
-  .skip-intro-button {
-    top: auto;
+  
+  .experience-split {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  
+  .experience-sidebar {
+    flex: none;
+    width: 100%;
+    order: 2; /* Put pool table on top on mobile */
   }
 
-  .hud-card--stats {
-    top: 5.7rem;
-    right: 1rem;
-    left: 1rem;
-    max-width: none;
-  }
-
-  .hud-card--controls {
-    right: 1rem;
-    left: 1rem;
-    bottom: 10.3rem;
-    width: auto;
-  }
-
-  .spin-selector {
-    left: auto;
-    right: 1rem;
-    bottom: 1rem;
+  .experience-stage {
+    flex: none;
+    height: 50vh;
+    order: 1;
   }
 
   .guided-banner {
-    top: 13.9rem;
+    top: 1rem;
     left: 1rem;
     right: 1rem;
     transform: none;
@@ -772,9 +797,5 @@ button:disabled {
 
   .mobile-shot-bar {
     grid-template-columns: 1fr;
-  }
-
-  .spin-selector {
-    width: calc(100vw - 2rem);
   }
 }

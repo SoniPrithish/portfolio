@@ -5,6 +5,7 @@ import { GRAPHICS_PRESETS, detectDeviceTier, detectInitialGraphicsPreset, isWebG
 import type { ActivePanelState, DeviceTier, GraphicsPreset, PerformanceStats } from '../types/portfolio'
 
 type IntroPhase = 'idle' | 'playing' | 'complete' | 'skipped'
+type IntroChallenge = 'active' | 'completed' | 'skipped'
 
 interface UnlockState {
   about: boolean
@@ -19,6 +20,8 @@ interface PortfolioState {
   accessibilityMode: boolean
   graphicsPreset: GraphicsPreset
   introPhase: IntroPhase
+  introChallenge: IntroChallenge
+  rackMode: 'full' | '8ball'
   activePanel: ActivePanelState | null
   shotsTaken: number
   pocketedCount: number
@@ -38,6 +41,7 @@ interface PortfolioState {
   acceptGraphicsReduction: () => void
   setPerformance: (stats: Partial<PerformanceStats>) => void
   setIntroPhase: (phase: IntroPhase) => void
+  skipIntroChallenge: () => void
   openPanel: (panel: ActivePanelState) => void
   closePanel: () => void
   recordShot: () => void
@@ -73,6 +77,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   accessibilityMode: false,
   graphicsPreset: 'high',
   introPhase: 'idle',
+  introChallenge: 'active',
+  rackMode: '8ball',
   activePanel: null,
   shotsTaken: 0,
   pocketedCount: 0,
@@ -140,6 +146,15 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   setIntroPhase: (phase) => {
     set({ introPhase: phase })
   },
+  skipIntroChallenge: () => {
+    set((state) => ({
+      introChallenge: 'skipped',
+      rackMode: 'full',
+      rackVersion: state.rackVersion + 1,
+      shotsTaken: 0,
+      pocketedCount: 0,
+    }))
+  },
   openPanel: (panel) => {
     set({ activePanel: panel })
   },
@@ -153,6 +168,11 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   },
   handlePocketedBall: (ballNumber) => {
     const state = get()
+
+    if (state.introChallenge === 'active') {
+      state.skipIntroChallenge()
+      return
+    }
 
     if (ballNumber === 8) {
       const project = projectByBallNumber.get(8)

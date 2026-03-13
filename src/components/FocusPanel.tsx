@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { FocusTrap } from 'focus-trap-react'
+import FocusTrap from 'focus-trap-react'
 
 import { aboutParagraphs, brand, contactHighlights, projectMap, skillClusters } from '../data/portfolio'
 import type { ActivePanelState } from '../types/portfolio'

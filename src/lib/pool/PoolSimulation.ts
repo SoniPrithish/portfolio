@@ -31,6 +31,7 @@ export interface SimBall {
 
 interface PoolSimulationOptions {
   onPocketBall?: (ballNumber: number) => void
+  onCueBallScratch?: () => void
   onEightBallFoul?: () => void
   canPocketEightBall?: () => boolean
   onBallCollision?: (intensity: number) => void
@@ -40,8 +41,8 @@ interface PoolSimulationOptions {
 const FIXED_DT = 1 / 120
 const MAX_SUBSTEPS = 4
 const BALL_RADIUS = 0.0285
-const TABLE_WIDTH = 1.16
-const TABLE_LENGTH = 2.24
+const TABLE_WIDTH = 2.24
+const TABLE_LENGTH = 1.16
 const HALF_WIDTH = TABLE_WIDTH / 2
 const HALF_LENGTH = TABLE_LENGTH / 2
 const CORNER_GATE = 0.125
@@ -174,10 +175,11 @@ export class PoolSimulation {
   private accumulator = 0
   private timeSinceImpactAudio = 0
   private timeSinceRailAudio = 0
+  private pendingCueBallRespot = false
 
   constructor(options: PoolSimulationOptions = {}) {
     this.options = options
-    this.resetRack()
+    this.resetRack('full')
   }
 
   get tableWidth(): number {
@@ -200,12 +202,12 @@ export class PoolSimulation {
     return this.balls[0]
   }
 
-  resetRack(): void {
+  resetRack(mode: 'full' | '8ball' = 'full'): void {
     this.accumulator = 0
     this.timeSinceImpactAudio = 0
     this.timeSinceRailAudio = 0
 
-    this.balls.forEach((ball) => {
+    this.balls.forEach((ball, index) => {
       ball.vel.set(0, 0)
       ball.prevPos.set(0, 0)
       ball.pos.set(0, 0)
@@ -215,38 +217,51 @@ export class PoolSimulation {
       ball.forwardSpin = 0
       ball.sliding = 0
       ball.sleeping = true
-      ball.pocketed = false
+      
+      if (mode === '8ball') {
+        ball.pocketed = (index !== 0 && index !== 8)
+      } else {
+        ball.pocketed = false
+      }
+      
       ball.dropping = false
       ball.dropProgress = 0
       ball.pocketIndex = -1
     })
 
     const cueBall = this.balls[0]
-    cueBall.pos.set(0, -TABLE_LENGTH * 0.31)
+    cueBall.pos.set(-TABLE_WIDTH * 0.31, 0)
     cueBall.prevPos.copy(cueBall.pos)
+
+    if (mode === '8ball') {
+      const eightBall = this.balls[8]
+      eightBall.pos.set(TABLE_WIDTH * 0.23, 0)
+      eightBall.prevPos.copy(eightBall.pos)
+      return
+    }
 
     const rowSpacing = BALL_RADIUS * 2.05
     const colSpacing = BALL_RADIUS * 1.78
-    const rackCenterY = TABLE_LENGTH * 0.23
+    const rackCenterX = TABLE_WIDTH * 0.23
     const rackOrder = [1, 9, 10, 2, 8, 3, 11, 4, 15, 5, 12, 6, 13, 7, 14]
     let rackIndex = 0
 
-    for (let row = 0; row < 5; row += 1) {
-      const y = rackCenterY + row * rowSpacing
-      const xStart = -row * colSpacing * 0.5
+    for (let col = 0; col < 5; col += 1) {
+      const x = rackCenterX + col * rowSpacing
+      const yStart = -col * colSpacing * 0.5
 
-      for (let col = 0; col <= row; col += 1) {
+      for (let row = 0; row <= col; row += 1) {
         const ballNumber = rackOrder[rackIndex]
         rackIndex += 1
         const ball = this.balls[ballNumber]
-        ball.pos.set(xStart + col * colSpacing, y)
+        ball.pos.set(x, yStart + row * colSpacing)
         ball.prevPos.copy(ball.pos)
       }
     }
   }
 
   breakShot(power = 0.94): void {
-    this.shoot(Math.PI / 2, power, { x: 0.03, y: 0.08 })
+    this.shoot(0, power, { x: 0.03, y: 0.08 })
   }
 
   shoot(angle: number, power: number, spin: { x: number; y: number }): boolean {
@@ -578,6 +593,22 @@ export class PoolSimulation {
         continue
       }
 
+      // Handle cue ball scratch — respot instead of permanently pocketing
+      if (ball.number === 0) {
+        ball.vel.set(0, 0)
+        ball.sideSpin = 0
+        ball.forwardSpin = 0
+        ball.sliding = 0
+        ball.sleeping = true
+        ball.dropping = true
+        ball.dropProgress = 0
+        ball.pocketIndex = pocket.index
+        ball.pos.copy(pocket.center)
+        this.pendingCueBallRespot = true
+        this.options.onCueBallScratch?.()
+        return
+      }
+
       if (ball.number === 8 && this.options.canPocketEightBall && !this.options.canPocketEightBall()) {
         this.options.onEightBallFoul?.()
         this.respotEightBall()
@@ -607,9 +638,67 @@ export class PoolSimulation {
       ball.dropProgress = Math.min(1, ball.dropProgress + dt / DROP_DURATION)
       if (ball.dropProgress >= 1) {
         ball.dropping = false
+
+        // Cue ball scratch: respot instead of permanent pocket
+        if (ball.number === 0 && this.pendingCueBallRespot) {
+          this.pendingCueBallRespot = false
+          this.respotCueBall()
+          return
+        }
+
         ball.pocketed = true
       }
     })
+  }
+
+  private respotCueBall(): void {
+    const cueBall = this.balls[0]
+    // Respot behind the head string (the break end of the table)
+    const headStringY = -TABLE_LENGTH * 0.31
+    const candidateSpots = [
+      new Vector2(0, headStringY),
+      new Vector2(-BALL_RADIUS * 4, headStringY),
+      new Vector2(BALL_RADIUS * 4, headStringY),
+      new Vector2(0, headStringY - BALL_RADIUS * 3),
+      new Vector2(0, headStringY + BALL_RADIUS * 3),
+    ]
+
+    for (const spot of candidateSpots) {
+      const hasCollision = this.balls.some((ball) => {
+        if (ball.number === 0 || ball.pocketed || ball.dropping) {
+          return false
+        }
+        return ball.pos.distanceToSquared(spot) < (BALL_RADIUS * 2.4) ** 2
+      })
+
+      if (!hasCollision) {
+        cueBall.pos.copy(spot)
+        cueBall.prevPos.copy(spot)
+        cueBall.vel.set(0, 0)
+        cueBall.sideSpin = 0
+        cueBall.forwardSpin = 0
+        cueBall.sliding = 0
+        cueBall.sleeping = true
+        cueBall.pocketed = false
+        cueBall.dropping = false
+        cueBall.dropProgress = 0
+        cueBall.pocketIndex = -1
+        return
+      }
+    }
+
+    // Fallback: place at center of head string area
+    cueBall.pos.set(0, headStringY)
+    cueBall.prevPos.copy(cueBall.pos)
+    cueBall.vel.set(0, 0)
+    cueBall.sideSpin = 0
+    cueBall.forwardSpin = 0
+    cueBall.sliding = 0
+    cueBall.sleeping = true
+    cueBall.pocketed = false
+    cueBall.dropping = false
+    cueBall.dropProgress = 0
+    cueBall.pocketIndex = -1
   }
 
   private respotEightBall(): void {

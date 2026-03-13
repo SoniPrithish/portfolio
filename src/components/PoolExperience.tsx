@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import { Canvas, type ThreeEvent, useFrame, useThree } from '@react-three/fiber'
 import {
+  BoxGeometry,
   CircleGeometry,
   Color,
   CylinderGeometry,
@@ -14,6 +15,7 @@ import {
   PMREMGenerator,
   Quaternion,
   SphereGeometry,
+  Vector2,
   Vector3,
 } from 'three'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
@@ -177,17 +179,28 @@ function PoolScene({
   const ballMeshRef = useRef<InstancedMesh | null>(null)
   const shadowMeshRef = useRef<InstancedMesh | null>(null)
   const cueGroupRef = useRef<Group | null>(null)
+  const trajectory1Ref = useRef<THREE.Mesh | null>(null)
+  const trajectory2Ref = useRef<THREE.Mesh | null>(null)
+  const trajectory3Ref = useRef<THREE.Mesh | null>(null)
+  const dragStartRef = useRef(new Vector3())
   const canShootRef = useRef(simulation.isRackSettled())
   const introProgressRef = useRef(0)
   const introBreakTriggeredRef = useRef(false)
   const fpsFramesRef = useRef(0)
   const fpsElapsedRef = useRef(0)
   const physicsMsRef = useRef(0)
+  const warmupRef = useRef(0)
 
   const ballGeometry = useMemo(() => new SphereGeometry(simulation.ballRadius, 36, 36), [simulation.ballRadius])
   const shadowGeometry = useMemo(() => new CircleGeometry(simulation.ballRadius * 1.1, 18), [simulation.ballRadius])
   const cueGeometry = useMemo(() => new CylinderGeometry(0.008, 0.012, 1.05, 14), [])
   const cueTipGeometry = useMemo(() => new CylinderGeometry(0.005, 0.008, 0.14, 12), [])
+
+  const trajectoryGeometry = useMemo(() => {
+    const geo = new BoxGeometry(1, 0.005, 0.005)
+    geo.translate(0.5, 0, 0)
+    return geo
+  }, [])
   const clothTextures = useMemo(() => createClothTextures(preset.textureScale), [preset.textureScale])
   const woodTextures = useMemo(() => createWoodTextures(preset.textureScale), [preset.textureScale])
   const ballAtlas = useMemo(() => createBallAtlasTexture(), [])
@@ -244,43 +257,6 @@ function PoolScene({
     ballMaterialTyped.needsUpdate = true
   }, [ballMaterial, preset.envIntensity])
 
-  useEffect(() => {
-    camera.position.set(0, 1.48, -1.54)
-  }, [camera])
-
-  const updateAimFromPoint = (point: Vector3) => {
-    const cueBall = simulation.getCueBall()
-    if (cueBall.pocketed) {
-      return
-    }
-
-    const dx = point.x - cueBall.pos.x
-    const dz = point.z - cueBall.pos.y
-    if (Math.abs(dx) < 1e-4 && Math.abs(dz) < 1e-4) {
-      return
-    }
-
-    if (deviceTier === 'mobile' || !chargingRef.current) {
-      aimTargetRef.current = Math.atan2(dz, dx)
-    }
-
-    if (deviceTier === 'desktop' && chargingRef.current) {
-      const aimX = Math.cos(aimAngleRef.current)
-      const aimZ = Math.sin(aimAngleRef.current)
-      const pullDistance = Math.max(0, -(dx * aimX + dz * aimZ))
-      const nextPower = Math.min(1, pullDistance / 0.45)
-      powerRef.current = nextPower
-      onPowerPreview(nextPower)
-    }
-  }
-
-  const handlePointerMove = (event: ThreeEvent<PointerEvent>) => {
-    if (inputLocked || introPhase !== 'complete') {
-      return
-    }
-
-    updateAimFromPoint(event.point)
-  }
 
   const handlePointerDown = (event: ThreeEvent<PointerEvent>) => {
     if (inputLocked || introPhase !== 'complete' || !canShootRef.current) {
@@ -288,10 +264,33 @@ function PoolScene({
     }
 
     onPrimeAudio()
+    chargingRef.current = true
+    dragStartRef.current.copy(event.point)
+  }
 
-    if (deviceTier === 'desktop') {
-      chargingRef.current = true
-      updateAimFromPoint(event.point)
+  const handlePointerMove = (event: ThreeEvent<PointerEvent>) => {
+    if (inputLocked || introPhase !== 'complete') {
+      return
+    }
+
+    const cueBall = simulation.getCueBall()
+    if (cueBall.pocketed) return
+
+    if (!chargingRef.current) {
+      const dx = cueBall.pos.x - event.point.x
+      const dz = cueBall.pos.y - event.point.z
+      if (Math.abs(dx) > 1e-4 || Math.abs(dz) > 1e-4) {
+        aimTargetRef.current = Math.atan2(dz, dx)
+      }
+    } else {
+      const dPullX = event.point.x - dragStartRef.current.x
+      const dPullZ = event.point.z - dragStartRef.current.z
+      const aimX = Math.cos(aimAngleRef.current)
+      const aimZ = Math.sin(aimAngleRef.current)
+      const pullDistance = Math.max(0, -(dPullX * aimX + dPullZ * aimZ))
+      const nextPower = Math.min(1, pullDistance / 0.45)
+      powerRef.current = nextPower
+      onPowerPreview(nextPower)
     }
   }
 
@@ -322,9 +321,13 @@ function PoolScene({
 
     fpsFramesRef.current += 1
     fpsElapsedRef.current += delta
+    warmupRef.current += delta
 
-    if (fpsElapsedRef.current > 0.45) {
+    if (fpsElapsedRef.current > 0.45 && warmupRef.current > 6) {
       onPerformance(fpsFramesRef.current / fpsElapsedRef.current, physicsMsRef.current)
+      fpsFramesRef.current = 0
+      fpsElapsedRef.current = 0
+    } else if (fpsElapsedRef.current > 0.45) {
       fpsFramesRef.current = 0
       fpsElapsedRef.current = 0
     }
@@ -341,27 +344,16 @@ function PoolScene({
       introProgressRef.current = introPhase === 'skipped' ? 1 : Math.min(1, introProgressRef.current + delta / 4.5)
 
       const t = introProgressRef.current
-      camera.position.set(
-        Math.sin(t * Math.PI * 1.15) * 0.48,
-        1.05 + (1 - t) * 0.44,
-        -1.74 + t * 1.12,
-      )
-      camera.lookAt(0, 0.7, 0.2)
-
       if (t >= 0.72) {
         introBreakTriggeredRef.current = true
         onPrimeAudio()
         onShoot(0.92, true)
         onIntroComplete()
       }
-    } else {
-      const targetCameraX = Math.sin(aimAngleRef.current) * 0.12
-      const targetCameraZ = -1.54 + Math.cos(aimAngleRef.current) * 0.04
-      camera.position.x = MathUtils.damp(camera.position.x, targetCameraX, 3.8, delta)
-      camera.position.y = MathUtils.damp(camera.position.y, 1.42, 3.8, delta)
-      camera.position.z = MathUtils.damp(camera.position.z, targetCameraZ, 3.8, delta)
-      camera.lookAt(0, 0.72, 0.12)
     }
+
+    camera.position.set(0, 3.5, 0)
+    camera.lookAt(0, 0, 0)
 
     if (ballMeshRef.current) {
       simulation.getBalls().forEach((ball, index) => {
@@ -408,10 +400,86 @@ function PoolScene({
       cueGroupRef.current.visible = showCue
       if (showCue) {
         const cueOffset = 0.48 + powerPreview * 0.22
-        cueGroupRef.current.position.set(cueBall.pos.x, 0.008, cueBall.pos.y)
-        cueGroupRef.current.rotation.y = -aimAngleRef.current
+        // Position cue correctly so we don't clip table, aim it perfectly at cue ball
+        cueGroupRef.current.position.set(cueBall.pos.x, 0.0285, cueBall.pos.y)
+        cueGroupRef.current.rotation.set(-0.04, -aimAngleRef.current + Math.PI / 2, 0, 'YXZ')
         cueGroupRef.current.position.x -= Math.cos(aimAngleRef.current) * cueOffset
         cueGroupRef.current.position.z -= Math.sin(aimAngleRef.current) * cueOffset
+      }
+    }
+
+    if (trajectory1Ref.current && trajectory2Ref.current && trajectory3Ref.current) {
+      const showTrajectory = !cueBall.pocketed && canShootRef.current && introPhase === 'complete' && !inputLocked
+      
+      const updateLine = (mesh: THREE.Mesh, pA: Vector2 | null, pB: Vector2 | null) => {
+        if (!showTrajectory || !pA || !pB) {
+          mesh.visible = false
+          return
+        }
+        mesh.visible = true
+        const dx = pB.x - pA.x
+        const dz = pB.y - pA.y
+        const dist = Math.sqrt(dx * dx + dz * dz)
+        const angle = Math.atan2(dz, dx)
+        mesh.position.set((pA.x + pB.x) / 2, 0.096, (pA.y + pB.y) / 2)
+        mesh.rotation.set(0, -angle, 0)
+        mesh.scale.set(dist, 1, 1)
+      }
+
+      if (showTrajectory) {
+        const dir = new Vector2(Math.cos(aimAngleRef.current), Math.sin(aimAngleRef.current))
+        let minT = 100
+        let type = 'none'
+        const hitNormal = new Vector2()
+        let endObj: { pos: Vector2 } | null = null
+        
+        const hw = simulation.tableWidth / 2
+        const hl = simulation.tableLength / 2
+        const rad = simulation.ballRadius
+
+        if (dir.x > 0) { const t = (hw - rad - cueBall.pos.x) / dir.x; if (t > 0 && t < minT) { minT = t; type = 'wall'; hitNormal.set(-1, 0) } }
+        if (dir.x < 0) { const t = (-hw + rad - cueBall.pos.x) / dir.x; if (t > 0 && t < minT) { minT = t; type = 'wall'; hitNormal.set(1, 0) } }
+        if (dir.y > 0) { const t = (hl - rad - cueBall.pos.y) / dir.y; if (t > 0 && t < minT) { minT = t; type = 'wall'; hitNormal.set(0, -1) } }
+        if (dir.y < 0) { const t = (-hl + rad - cueBall.pos.y) / dir.y; if (t > 0 && t < minT) { minT = t; type = 'wall'; hitNormal.set(0, 1) } }
+
+        const balls = simulation.getBalls()
+        for (const b of balls) {
+          if (b.pocketed || b === cueBall || (!b.sleeping && b.vel.lengthSq() > 0.001)) continue
+          const v = new Vector2().subVectors(b.pos, cueBall.pos)
+          const vDotD = v.dot(dir)
+          if (vDotD <= 0) continue
+          const perpSq = v.lengthSq() - vDotD * vDotD
+          const radSq = 4 * rad * rad
+          if (perpSq >= radSq) continue
+          const distToHit = vDotD - Math.sqrt(radSq - perpSq)
+          if (distToHit > 0 && distToHit < minT) {
+            minT = distToHit
+            type = 'ball'
+            endObj = b
+          }
+        }
+
+        const p1 = new Vector2().copy(cueBall.pos).add(dir.clone().multiplyScalar(minT))
+        let p2Cue = null
+        let p2Obj = null
+
+        if (type === 'wall') {
+          const reflectDir = dir.clone().sub(hitNormal.clone().multiplyScalar(2 * dir.dot(hitNormal)))
+          p2Cue = p1.clone().add(reflectDir.multiplyScalar(0.4))
+        } else if (type === 'ball' && endObj) {
+          const objDir = new Vector2().subVectors(endObj.pos, p1).normalize()
+          p2Obj = endObj.pos.clone().add(objDir.multiplyScalar(0.5))
+          const cueDir = dir.clone().sub(objDir.clone().multiplyScalar(dir.dot(objDir))).normalize()
+          p2Cue = p1.clone().add(cueDir.multiplyScalar(0.2))
+        }
+
+        updateLine(trajectory1Ref.current, cueBall.pos, p1)
+        updateLine(trajectory2Ref.current, p1, p2Cue)
+        updateLine(trajectory3Ref.current, endObj ? endObj.pos : null, p2Obj)
+      } else {
+        updateLine(trajectory1Ref.current, null, null)
+        updateLine(trajectory2Ref.current, null, null)
+        updateLine(trajectory3Ref.current, null, null)
       }
     }
 
@@ -517,14 +585,28 @@ function PoolScene({
           </mesh>
         </group>
 
+        <mesh ref={trajectory1Ref} geometry={trajectoryGeometry}>
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.5} depthWrite={false} />
+        </mesh>
+        <mesh ref={trajectory2Ref} geometry={trajectoryGeometry}>
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.25} depthWrite={false} />
+        </mesh>
+        <mesh ref={trajectory3Ref} geometry={trajectoryGeometry}>
+          <meshBasicMaterial color="#00d8ff" transparent opacity={0.5} depthWrite={false} />
+        </mesh>
+
         <mesh
-          position={[0, 0.11, 0]}
-          rotation={[-Math.PI / 2, 0, 0]}
-          onPointerMove={handlePointerMove}
+          position={[0, 0.095, 0]}
+          visible={false}
           onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerOut={handlePointerUp}
         >
+          <boxGeometry args={[10, 0.01, 10]} />
+        </mesh>
+
+        <mesh position={[0, 0.084, 0]} receiveShadow={preset.enableShadows}>
           <planeGeometry args={[simulation.tableWidth * 1.18, simulation.tableLength * 1.18]} />
           <meshBasicMaterial transparent opacity={0} />
         </mesh>
@@ -538,6 +620,8 @@ export default function PoolExperience() {
   const webglReady = usePortfolioStore((state) => state.webglReady)
   const graphicsPreset = usePortfolioStore((state) => state.graphicsPreset)
   const introPhase = usePortfolioStore((state) => state.introPhase)
+  const introChallenge = usePortfolioStore((state) => state.introChallenge)
+  const rackMode = usePortfolioStore((state) => state.rackMode)
   const activePanel = usePortfolioStore((state) => state.activePanel)
   const shotsTaken = usePortfolioStore((state) => state.shotsTaken)
   const pocketedCount = usePortfolioStore((state) => state.pocketedCount)
@@ -558,6 +642,7 @@ export default function PoolExperience() {
   const acceptGraphicsReduction = usePortfolioStore((state) => state.acceptGraphicsReduction)
   const setPerformance = usePortfolioStore((state) => state.setPerformance)
   const setIntroPhase = usePortfolioStore((state) => state.setIntroPhase)
+  const skipIntroChallenge = usePortfolioStore((state) => state.skipIntroChallenge)
   const openPanel = usePortfolioStore((state) => state.openPanel)
   const closePanel = usePortfolioStore((state) => state.closePanel)
   const recordShot = usePortfolioStore((state) => state.recordShot)
@@ -578,7 +663,10 @@ export default function PoolExperience() {
           handlePocketedBall(ballNumber)
           audioRef.current?.playPocket()
         },
-        canPocketEightBall: () => usePortfolioStore.getState().viewedProjects.length > 0,
+        onCueBallScratch: () => {
+          audioRef.current?.playPocket()
+        },
+        canPocketEightBall: () => true,
         onEightBallFoul: () => {
           notifyEightBallFoul()
           audioRef.current?.playRail(0.9)
@@ -628,14 +716,14 @@ export default function PoolExperience() {
   }, [advancedAudio])
 
   useEffect(() => {
-    simulation.resetRack()
+    simulation.resetRack(rackMode)
     aimAngleRef.current = Math.PI / 2
     aimTargetRef.current = Math.PI / 2
     chargingRef.current = false
     powerRef.current = 0
     setPowerPreview(deviceTier === 'mobile' ? 0.56 : 0)
     setCanShoot(simulation.isRackSettled())
-  }, [deviceTier, rackVersion, simulation])
+  }, [deviceTier, rackVersion, rackMode, simulation])
 
   const primeAudio = useCallback(() => {
     void audioRef.current?.prime()
@@ -717,47 +805,15 @@ export default function PoolExperience() {
         onToggleAccessibility={toggleAccessibility}
       />
 
-      <section className="experience-stage" aria-label="Interactive 8-ball portfolio">
-        <Canvas
-          className="experience-canvas"
-          shadows={GRAPHICS_PRESETS[graphicsPreset].enableShadows}
-          dpr={[1, GRAPHICS_PRESETS[graphicsPreset].maxDpr]}
-          gl={{ antialias: graphicsPreset !== 'low', powerPreference: 'high-performance' }}
-          camera={{ position: [0, 1.48, -1.54], fov: deviceTier === 'mobile' ? 42 : 36 }}
-        >
-          <PoolScene
-            simulation={simulation}
-            graphicsPreset={graphicsPreset}
-            deviceTier={deviceTier}
-            introPhase={introPhase}
-            inputLocked={Boolean(activePanel)}
-            powerPreview={powerPreview}
-            aimAngleRef={aimAngleRef}
-            aimTargetRef={aimTargetRef}
-            chargingRef={chargingRef}
-            powerRef={powerRef}
-            onPowerPreview={setPowerPreview}
-            onCanShootChange={setCanShoot}
-            onShoot={fireShot}
-            onPrimeAudio={primeAudio}
-            onIntroComplete={() => setIntroPhase('complete')}
-            onPerformance={(fps, physicsMs) =>
-              setPerformance({
-                fps,
-                physicsMs,
-                suggestionVisible: fps < 52 && graphicsPreset !== 'low',
-              })
-            }
-          />
-        </Canvas>
+      <div className="experience-split">
+        {/* LEFT SIDEBAR */}
+        <aside className="experience-sidebar" aria-label="Portfolio scoreboard">
+          <div className="sidebar-brand">
+            <p className="eyebrow">Tournament overlay</p>
+            <h1>{brand.name}</h1>
+            <p className="hud-card__role">{brand.role}</p>
+          </div>
 
-        <div className="experience-vignette" aria-hidden="true" />
-        <div className="experience-glow" aria-hidden="true" />
-
-        <aside className="hud-card hud-card--stats" aria-label="Portfolio scoreboard">
-          <p className="eyebrow">Tournament overlay</p>
-          <h1>{brand.name}</h1>
-          <p className="hud-card__role">{brand.role}</p>
           <div className="stat-grid">
             <div>
               <span>Shots</span>
@@ -777,137 +833,173 @@ export default function PoolExperience() {
             </div>
           </div>
 
-          <div className="hud-links">
-            <button type="button" onClick={() => openPanel({ kind: 'about' })}>
-              About Brief
-            </button>
-            <button type="button" onClick={() => openPanel({ kind: 'skills' })}>
-              Skills Board
-            </button>
-            <button type="button" onClick={toggleAccessibility}>
-              Accessibility Mode
-            </button>
+          <AimStatus canShoot={canShoot} power={powerPreview} deviceTier={deviceTier} />
+
+          <div className="sidebar-controls">
+            <div className="hud-links">
+              <button type="button" onClick={() => openPanel({ kind: 'about' })}>About Brief</button>
+              <button type="button" onClick={() => openPanel({ kind: 'skills' })}>Skills Board</button>
+            </div>
+
+            <div className="hud-card__controls">
+              <button type="button" onClick={() => setQualityOpen((value) => !value)}>Graphics Preset</button>
+              <button type="button" onClick={toggleSound}>
+                {soundEnabled ? 'Mute Sound' : 'Enable Sound'}
+              </button>
+              <button type="button" onClick={handleResetRack}>Reset Rack</button>
+              <button type="button" onClick={() => openPanel({ kind: 'help' })}>Help / Controls</button>
+              <button type="button" onClick={toggleGuidedMode}>
+                {guidedMode ? 'Hide Guided Mode' : 'Show Guided Mode'}
+              </button>
+              <button type="button" onClick={toggleDevStats}>
+                {devStatsVisible ? 'Hide Perf' : 'Show Perf'}
+              </button>
+            </div>
+
+            {qualityOpen ? (
+              <section className="quality-panel" aria-label="Graphics and audio settings">
+                <div className="quality-panel__preset-row">
+                  {(['low', 'medium', 'high', 'ultra'] as const).map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className={graphicsPreset === preset ? 'is-active' : ''}
+                      onClick={() => setGraphicsPreset(preset)}
+                    >
+                      {GRAPHICS_PRESETS[preset].label}
+                    </button>
+                  ))}
+                </div>
+                <label className="slider-field">
+                  <span>Volume</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={volume}
+                    onChange={(event) => setVolume(Number(event.target.value))}
+                  />
+                </label>
+                <label className="toggle-field">
+                  <input
+                    type="checkbox"
+                    checked={advancedAudio}
+                    onChange={(event) => setAdvancedAudio(event.target.checked)}
+                  />
+                  <span>Enhanced audio layering</span>
+                </label>
+                <p className="quality-panel__meta">
+                  {Math.round(performance.fps)} FPS · {performance.physicsMs.toFixed(2)} ms physics
+                </p>
+              </section>
+            ) : null}
           </div>
 
-          <AimStatus canShoot={canShoot} power={powerPreview} deviceTier={deviceTier} />
+          <SpinSelector spin={spin} onChange={setSpin} />
         </aside>
 
-        <aside className="hud-card hud-card--controls">
-          <div className="hud-card__controls">
-            <button type="button" onClick={() => setQualityOpen((value) => !value)}>
-              Graphics Preset
-            </button>
-            <button type="button" onClick={toggleSound}>
-              {soundEnabled ? 'Mute Sound' : 'Enable Sound'}
-            </button>
-            <button type="button" onClick={handleResetRack}>
-              Reset Rack
-            </button>
-            <button type="button" onClick={() => openPanel({ kind: 'help' })}>
-              Help / Controls
-            </button>
-            <button type="button" onClick={toggleGuidedMode}>
-              {guidedMode ? 'Hide Guided Mode' : 'Show Guided Mode'}
-            </button>
-            <button type="button" onClick={toggleDevStats}>
-              {devStatsVisible ? 'Hide Perf' : 'Show Perf'}
-            </button>
-          </div>
+        {/* RIGHT: POOL TABLE CANVAS */}
+        <section className="experience-stage" aria-label="Interactive 8-ball portfolio">
+          <Canvas
+            className="experience-canvas"
+            shadows={GRAPHICS_PRESETS[graphicsPreset].enableShadows}
+            dpr={[1, GRAPHICS_PRESETS[graphicsPreset].maxDpr]}
+            gl={{ antialias: graphicsPreset !== 'low', powerPreference: 'high-performance' }}
+            camera={{ position: [0, 3.5, 0], fov: deviceTier === 'mobile' ? 65 : 45 }}
+          >
+            <PoolScene
+              simulation={simulation}
+              graphicsPreset={graphicsPreset}
+              deviceTier={deviceTier}
+              introPhase={introPhase}
+              inputLocked={Boolean(activePanel)}
+              powerPreview={powerPreview}
+              aimAngleRef={aimAngleRef}
+              aimTargetRef={aimTargetRef}
+              chargingRef={chargingRef}
+              powerRef={powerRef}
+              onPowerPreview={setPowerPreview}
+              onCanShootChange={setCanShoot}
+              onShoot={fireShot}
+              onPrimeAudio={primeAudio}
+              onIntroComplete={() => setIntroPhase('complete')}
+              onPerformance={(fps, physicsMs) =>
+                setPerformance({
+                  fps,
+                  physicsMs,
+                  suggestionVisible: fps < 52 && graphicsPreset !== 'low',
+                })
+              }
+            />
+          </Canvas>
 
-          {qualityOpen ? (
-            <section className="quality-panel" aria-label="Graphics and audio settings">
-              <div className="quality-panel__preset-row">
-                {(['low', 'medium', 'high', 'ultra'] as const).map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    className={graphicsPreset === preset ? 'is-active' : ''}
-                    onClick={() => setGraphicsPreset(preset)}
-                  >
-                    {GRAPHICS_PRESETS[preset].label}
-                  </button>
-                ))}
+          <div className="experience-vignette" aria-hidden="true" />
+          <div className="experience-glow" aria-hidden="true" />
+
+          {introChallenge === 'active' ? (
+            <div className="guided-banner intro-challenge-banner">
+              <div>
+                <strong>Sink the 8-ball to begin</strong>
+                <p>Or skip ahead to view the full portfolio</p>
               </div>
+              <button type="button" onClick={skipIntroChallenge}>Skip Challenge</button>
+            </div>
+          ) : guidedMessage ? (
+            <div className="guided-banner">{guidedMessage}</div>
+          ) : null}
+
+          {deviceTier === 'mobile' ? (
+            <section className="mobile-shot-bar">
               <label className="slider-field">
-                <span>Volume</span>
+                <span>Power</span>
                 <input
                   type="range"
-                  min="0"
+                  min="0.05"
                   max="1"
                   step="0.01"
-                  value={volume}
-                  onChange={(event) => setVolume(Number(event.target.value))}
+                  value={powerPreview}
+                  onChange={(event) => {
+                    const nextPower = Number(event.target.value)
+                    setPowerPreview(nextPower)
+                    powerRef.current = nextPower
+                  }}
                 />
               </label>
-              <label className="toggle-field">
-                <input
-                  type="checkbox"
-                  checked={advancedAudio}
-                  onChange={(event) => setAdvancedAudio(event.target.checked)}
-                />
-                <span>Enhanced audio layering</span>
-              </label>
-              <p className="quality-panel__meta">
-                {Math.round(performance.fps)} FPS · {performance.physicsMs.toFixed(2)} ms physics
-              </p>
+              <button
+                type="button"
+                disabled={!canShoot || Boolean(activePanel) || introPhase !== 'complete'}
+                onClick={() => fireShot(powerPreview)}
+              >
+                Shoot
+              </button>
             </section>
           ) : null}
-        </aside>
 
-        <SpinSelector spin={spin} onChange={setSpin} />
-
-        {guidedMessage ? <div className="guided-banner">{guidedMessage}</div> : null}
-
-        {deviceTier === 'mobile' ? (
-          <section className="mobile-shot-bar">
-            <label className="slider-field">
-              <span>Power</span>
-              <input
-                type="range"
-                min="0.05"
-                max="1"
-                step="0.01"
-                value={powerPreview}
-                onChange={(event) => {
-                  const nextPower = Number(event.target.value)
-                  setPowerPreview(nextPower)
-                  powerRef.current = nextPower
-                }}
-              />
-            </label>
-            <button
-              type="button"
-              disabled={!canShoot || Boolean(activePanel) || introPhase !== 'complete'}
-              onClick={() => fireShot(powerPreview)}
-            >
-              Shoot
+          {introPhase === 'playing' ? (
+            <button className="skip-intro-button" type="button" onClick={() => setIntroPhase('skipped')}>
+              Skip Intro
             </button>
-          </section>
-        ) : null}
+          ) : null}
 
-        {introPhase === 'playing' ? (
-          <button className="skip-intro-button" type="button" onClick={() => setIntroPhase('skipped')}>
-            Skip Intro
-          </button>
-        ) : null}
+          {performance.suggestionVisible ? (
+            <div className="performance-banner" role="status">
+              <span>Performance dipped. Reduce graphics for a smoother rack.</span>
+              <button type="button" onClick={acceptGraphicsReduction}>
+                Reduce Graphics
+              </button>
+            </div>
+          ) : null}
 
-        {performance.suggestionVisible ? (
-          <div className="performance-banner" role="status">
-            <span>Performance dipped. Reduce graphics for a smoother rack.</span>
-            <button type="button" onClick={acceptGraphicsReduction}>
-              Reduce Graphics
-            </button>
-          </div>
-        ) : null}
-
-        {devStatsVisible ? (
-          <div className="dev-stats">
-            <span>{Math.round(performance.fps)} FPS</span>
-            <span>{performance.physicsMs.toFixed(2)} ms physics</span>
-            <span>{graphicsPreset.toUpperCase()}</span>
-          </div>
-        ) : null}
-      </section>
+          {devStatsVisible ? (
+            <div className="dev-stats">
+              <span>{Math.round(performance.fps)} FPS</span>
+              <span>{performance.physicsMs.toFixed(2)} ms physics</span>
+              <span>{graphicsPreset.toUpperCase()}</span>
+            </div>
+          ) : null}
+        </section>
+      </div>
 
       <FocusPanel panel={activePanel} onClose={closePanel} />
     </div>
