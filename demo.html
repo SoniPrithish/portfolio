@@ -1,0 +1,1153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pool Portfolio Demo</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Rajdhani:wght@500;600;700&display=swap');
+
+      :root {
+        color-scheme: dark;
+        --bg: #07110d;
+        --panel: rgba(8, 18, 15, 0.82);
+        --panel-strong: rgba(8, 18, 15, 0.94);
+        --line: rgba(214, 184, 123, 0.16);
+        --line-strong: rgba(214, 184, 123, 0.42);
+        --text: #deeadf;
+        --text-soft: #93ac99;
+        --gold: #d9b977;
+        --gold-bright: #f3d9a2;
+        --emerald: #178858;
+        --danger: #f27760;
+        --shadow: 0 28px 80px rgba(0, 0, 0, 0.36);
+        --sans: 'Manrope', system-ui, sans-serif;
+        --display: 'Rajdhani', sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background:
+          radial-gradient(circle at 50% 10%, rgba(21, 101, 64, 0.32), transparent 28%),
+          radial-gradient(circle at 12% 0%, rgba(121, 80, 24, 0.18), transparent 24%),
+          linear-gradient(180deg, #09130f 0%, #030705 100%);
+        color: var(--text);
+        font-family: var(--sans);
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text);
+        padding: 0.72rem 1rem;
+        transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+        border-color: var(--line-strong);
+      }
+
+      .page {
+        min-height: 100vh;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.3rem;
+        background: rgba(5, 11, 9, 0.66);
+        backdrop-filter: blur(16px);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.9rem;
+      }
+
+      .brand-mark {
+        width: 2.9rem;
+        height: 2.9rem;
+        border-radius: 50%;
+        border: 1px solid var(--line-strong);
+        display: grid;
+        place-items: center;
+        font-family: var(--display);
+        font-weight: 700;
+        color: var(--gold-bright);
+        letter-spacing: 0.12em;
+        background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.18), transparent 30%);
+      }
+
+      .brand strong,
+      .brand small {
+        display: block;
+      }
+
+      .brand strong {
+        font-family: var(--display);
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+      }
+
+      .brand small,
+      .topbar nav a,
+      .topbar button {
+        color: var(--text-soft);
+      }
+
+      .topbar nav,
+      .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .hero {
+        width: min(1440px, calc(100% - 2rem));
+        margin: 1rem auto;
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(320px, 360px) minmax(0, 1fr) minmax(300px, 360px);
+        align-items: start;
+      }
+
+      .panel {
+        border-radius: 28px;
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015)),
+          var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .left-panel,
+      .right-panel {
+        padding: 1.15rem;
+        backdrop-filter: blur(18px);
+      }
+
+      .eyebrow {
+        font-family: var(--display);
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--gold);
+        font-size: 0.82rem;
+        margin: 0 0 0.55rem;
+      }
+
+      .left-panel h1,
+      .right-panel h2,
+      .html-section h2 {
+        margin: 0;
+        font-family: var(--display);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .left-panel h1 {
+        font-size: clamp(2.8rem, 5vw, 4.9rem);
+        line-height: 0.95;
+      }
+
+      .subtitle {
+        margin-top: 0.45rem;
+        color: var(--gold);
+        font-family: var(--display);
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+      }
+
+      .copy,
+      .meta,
+      .help-list,
+      .right-panel p,
+      .card p,
+      .html-section p {
+        color: var(--text-soft);
+        line-height: 1.7;
+      }
+
+      .copy {
+        margin: 1rem 0 1.1rem;
+      }
+
+      .pill-row,
+      .action-row,
+      .control-row,
+      .chip-row {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+      }
+
+      .pill,
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 2rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        color: var(--text-soft);
+        font-size: 0.84rem;
+      }
+
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin: 1rem 0;
+      }
+
+      .stat {
+        padding: 0.85rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .stat span {
+        display: block;
+        color: var(--text-soft);
+        font-size: 0.82rem;
+      }
+
+      .stat strong {
+        display: block;
+        margin-top: 0.3rem;
+        font-size: 1.5rem;
+        color: var(--gold-bright);
+        font-family: var(--display);
+      }
+
+      .demo-stage {
+        position: relative;
+        min-height: 760px;
+        padding: 1rem;
+      }
+
+      .table-shell {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1.95 / 1;
+        border-radius: 34px;
+        border: 1px solid var(--line);
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 50% 50%, rgba(255, 221, 156, 0.06), transparent 24%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent);
+      }
+
+      #tableCanvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .vignette {
+        position: absolute;
+        inset: 1rem;
+        border-radius: 34px;
+        pointer-events: none;
+        background:
+          radial-gradient(circle at center, transparent 34%, rgba(0, 0, 0, 0.15) 72%, rgba(0, 0, 0, 0.4) 100%),
+          linear-gradient(180deg, rgba(0, 0, 0, 0.18), transparent 22%, transparent 78%, rgba(0, 0, 0, 0.2));
+      }
+
+      .guided-banner,
+      .performance-banner {
+        position: absolute;
+        z-index: 2;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: min(600px, calc(100% - 2rem));
+        padding: 0.9rem 1rem;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(4, 10, 8, 0.82);
+        text-align: center;
+        backdrop-filter: blur(16px);
+      }
+
+      .guided-banner {
+        top: 1.8rem;
+        color: var(--gold-bright);
+      }
+
+      .performance-banner {
+        bottom: 1.8rem;
+        display: none;
+        gap: 0.7rem;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .performance-banner.show {
+        display: flex;
+      }
+
+      .slider-group {
+        display: grid;
+        gap: 0.35rem;
+        margin-top: 0.9rem;
+      }
+
+      input[type='range'] {
+        width: 100%;
+        accent-color: var(--gold);
+      }
+
+      .html-sections {
+        width: min(1440px, calc(100% - 2rem));
+        margin: 0 auto 2rem;
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .html-section {
+        padding: 1.2rem;
+      }
+
+      .project-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.9rem;
+        margin-top: 1rem;
+      }
+
+      .card {
+        padding: 1rem;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .card h3 {
+        margin: 0 0 0.45rem;
+        font-family: var(--display);
+        font-size: 1.45rem;
+        letter-spacing: 0.03em;
+      }
+
+      .legend {
+        display: flex;
+        gap: 0.7rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--text-soft);
+        font-size: 0.86rem;
+      }
+
+      .legend i {
+        width: 0.8rem;
+        height: 0.8rem;
+        border-radius: 50%;
+        display: inline-block;
+      }
+
+      .footer-note {
+        width: min(1440px, calc(100% - 2rem));
+        margin: 0 auto 2rem;
+        padding: 1rem 1.15rem;
+        border-radius: 22px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text-soft);
+      }
+
+      @media (max-width: 1180px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .demo-stage {
+          min-height: auto;
+        }
+
+        .html-sections {
+          grid-template-columns: 1fr;
+        }
+
+        .project-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">PS</div>
+          <div>
+            <strong>Prithish Soni</strong>
+            <small>Creative Developer / Realtime Graphics Engineer</small>
+          </div>
+        </div>
+        <nav>
+          <a href="#demo">Demo</a>
+          <a href="#accessibility-mode">Accessibility Mode</a>
+          <a href="#projects">Projects</a>
+          <a href="#contact">Contact</a>
+        </nav>
+        <div class="topbar-actions">
+          <button id="scrollAccessibility">Accessibility Mode</button>
+          <button id="resetRack">Reset Rack</button>
+        </div>
+      </header>
+
+      <section class="hero" id="demo">
+        <aside class="left-panel panel">
+          <p class="eyebrow">Standalone live demo</p>
+          <h1>Enter the Rack</h1>
+          <div class="subtitle">Playable concept preview</div>
+          <p class="copy">
+            This is a self-contained browser demo of the pool portfolio concept: take shots, pocket numbered balls,
+            and unlock project and contact panels through play.
+          </p>
+
+          <div class="pill-row">
+            <span class="pill">Take the Shot</span>
+            <span class="pill">Sink a Ball to Explore</span>
+            <span class="pill">Sink the 8 to Contact</span>
+          </div>
+
+          <div class="stat-grid">
+            <div class="stat">
+              <span>Shots</span>
+              <strong id="shotsValue">0</strong>
+            </div>
+            <div class="stat">
+              <span>Pocketed</span>
+              <strong id="pocketedValue">0</strong>
+            </div>
+            <div class="stat">
+              <span>Projects viewed</span>
+              <strong id="projectsValue">0</strong>
+            </div>
+            <div class="stat">
+              <span>Sections unlocked</span>
+              <strong id="sectionsValue">0</strong>
+            </div>
+          </div>
+
+          <div class="control-row">
+            <button id="toggleGuided">Hide Guided Mode</button>
+            <button id="openAbout">About</button>
+            <button id="openSkills">Skills</button>
+          </div>
+
+          <div class="slider-group">
+            <label for="spinSlider">English</label>
+            <input id="spinSlider" type="range" min="-1" max="1" step="0.01" value="0" />
+          </div>
+
+          <div class="legend">
+            <span><i style="background:#f2c230"></i> Any solid unlocks About</span>
+            <span><i style="background:#2b61df"></i> Any stripe unlocks Skills</span>
+            <span><i style="background:#111"></i> 8-ball unlocks Contact</span>
+          </div>
+        </aside>
+
+        <section class="demo-stage panel">
+          <div class="guided-banner" id="guidedBanner">Drag back from the cue ball to line up your first shot.</div>
+          <div class="performance-banner" id="performanceBanner">
+            <span>Graphics are already lightweight in this demo.</span>
+            <button id="dismissPerf">Dismiss</button>
+          </div>
+          <div class="table-shell">
+            <canvas id="tableCanvas" width="1200" height="640" aria-label="Playable pool demo"></canvas>
+          </div>
+          <div class="vignette"></div>
+        </section>
+
+        <aside class="right-panel panel">
+          <p class="eyebrow" id="panelEyebrow">Ball panel</p>
+          <h2 id="panelTitle">Take the shot.</h2>
+          <p id="panelCopy">
+            Drag back from the cue ball to control power. Pocket a ball to reveal a project, unlock the portfolio
+            sections, and clear the 8-ball after at least one project to open contact.
+          </p>
+          <div class="chip-row" id="panelChips">
+            <span class="chip">Playable demo</span>
+            <span class="chip">HUD overlay</span>
+            <span class="chip">Pool navigation</span>
+          </div>
+          <div class="action-row" style="margin-top: 1rem">
+            <button id="openContact">Contact panel</button>
+            <button id="scrollProjects">Project list</button>
+          </div>
+        </aside>
+      </section>
+
+      <section class="html-sections" id="accessibility-mode">
+        <article class="html-section panel">
+          <p class="eyebrow">Accessibility Mode</p>
+          <h2>About</h2>
+          <p>
+            The full repo includes semantic HTML routes for `/`, `/about`, `/projects`, `/projects/:id`, and
+            `/contact`. This standalone demo mirrors that idea by surfacing the same content below the game area.
+          </p>
+          <p>
+            The final portfolio is designed around performance-first rendering, playful navigation, and keyboard-safe
+            content access.
+          </p>
+        </article>
+
+        <article class="html-section panel">
+          <p class="eyebrow">Skills</p>
+          <h2>Core skills</h2>
+          <div class="chip-row">
+            <span class="chip">React</span>
+            <span class="chip">TypeScript</span>
+            <span class="chip">Three.js</span>
+            <span class="chip">WebGL</span>
+            <span class="chip">Realtime UI</span>
+            <span class="chip">Performance tuning</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="html-sections" id="projects">
+        <article class="html-section panel" style="grid-column: 1 / -1">
+          <p class="eyebrow">Projects</p>
+          <h2>Numbered balls map to builds.</h2>
+          <div class="project-grid" id="projectGrid"></div>
+        </article>
+      </section>
+
+      <section class="html-sections" id="contact">
+        <article class="html-section panel" style="grid-column: 1 / -1">
+          <p class="eyebrow">Contact</p>
+          <h2>Ready for a premium production pass.</h2>
+          <p>
+            The React/Vite codebase is already in the repo. This page is a live fallback demo so you can review the
+            concept immediately while the synced-drive Vite environment is being stubborn.
+          </p>
+          <div class="action-row" style="margin-top: 1rem">
+            <a class="pill" href="mailto:hello@yourdomain.dev">hello@yourdomain.dev</a>
+            <a class="pill" href="https://github.com/your-handle" target="_blank" rel="noreferrer">GitHub</a>
+            <a class="pill" href="https://www.linkedin.com/in/your-handle/" target="_blank" rel="noreferrer">LinkedIn</a>
+          </div>
+        </article>
+      </section>
+
+      <div class="footer-note panel">
+        This demo is intentionally lightweight and self-contained. The full app in `src/` has the richer 3D React
+        implementation, quality presets, audio engine, route parity, and more complete state handling.
+      </div>
+    </div>
+
+    <script>
+      const brand = {
+        name: 'Prithish Soni',
+        role: 'Creative Developer / Realtime Graphics Engineer',
+      }
+
+      const projects = [
+        { ball: 1, name: 'Kinetic Atlas', desc: 'Cinematic data atlas for global logistics.', tech: ['React', 'Three.js', 'WebGL'] },
+        { ball: 2, name: 'Velvet Ops', desc: 'Dark-mode operations console with tactile motion.', tech: ['React', 'TypeScript', 'Realtime UI'] },
+        { ball: 3, name: 'Photon Forge', desc: 'Shader sketchbook for lighting studies.', tech: ['GLSL', 'Three.js', 'Creative tooling'] },
+        { ball: 4, name: 'Signal Desk', desc: 'Newsroom-inspired monitoring wall.', tech: ['React', 'D3', 'Node.js'] },
+        { ball: 5, name: 'Ghost Queue', desc: 'Queue intelligence and forecasting layer.', tech: ['TypeScript', 'Python', 'FastAPI'] },
+        { ball: 6, name: 'Neon Ledger', desc: 'Fast finance workspace with editorial density.', tech: ['React', 'Vite', 'Performance'] },
+        { ball: 7, name: 'Echo Motion', desc: 'Motion toolkit for narrative interfaces.', tech: ['GSAP', 'Motion systems', 'UX'] },
+        { ball: 8, name: 'Rack Engine', desc: 'The pool portfolio itself.', tech: ['Custom physics', 'Instancing', 'Accessibility'] },
+        { ball: 9, name: 'Lattice Vision', desc: 'Visual QA studio for render comparison.', tech: ['Canvas', 'AI workflows', 'Review UX'] },
+        { ball: 10, name: 'Orbit Studio', desc: 'Collaborative scene editor for immersive prototypes.', tech: ['Three.js', 'Scene graphs', 'Tools'] },
+        { ball: 11, name: 'Drift Commerce', desc: 'High-conversion commerce shell.', tech: ['Search UX', 'Performance', 'Editorial layout'] },
+        { ball: 12, name: 'Prisma Nodes', desc: 'Graph-first AI workspace.', tech: ['TypeScript', 'Streaming UI', 'Node editor'] },
+        { ball: 13, name: 'Pulse OS', desc: 'Operational dashboard for fleets and telemetry.', tech: ['Telemetry', 'Data viz', 'Realtime drill-down'] },
+        { ball: 14, name: 'Arena Metrics', desc: 'Sports analytics interface with live replay.', tech: ['Streaming data', 'Broadcast UI', 'D3'] },
+        { ball: 15, name: 'Northstar AI', desc: 'Readable AI decision surface.', tech: ['AI products', 'Traceability', 'Human review'] },
+      ]
+
+      const colorMap = {
+        0: '#ffffff',
+        1: '#f2c230',
+        2: '#2a5dde',
+        3: '#d94a35',
+        4: '#6d4ad2',
+        5: '#ff7f3d',
+        6: '#1ca26d',
+        7: '#811d24',
+        8: '#111111',
+        9: '#f2c230',
+        10: '#2a5dde',
+        11: '#d94a35',
+        12: '#6d4ad2',
+        13: '#ff7f3d',
+        14: '#1ca26d',
+        15: '#811d24',
+      }
+
+      const canvas = document.getElementById('tableCanvas')
+      const ctx = canvas.getContext('2d')
+      const guidedBanner = document.getElementById('guidedBanner')
+      const performanceBanner = document.getElementById('performanceBanner')
+      const shotsValue = document.getElementById('shotsValue')
+      const pocketedValue = document.getElementById('pocketedValue')
+      const projectsValue = document.getElementById('projectsValue')
+      const sectionsValue = document.getElementById('sectionsValue')
+      const panelEyebrow = document.getElementById('panelEyebrow')
+      const panelTitle = document.getElementById('panelTitle')
+      const panelCopy = document.getElementById('panelCopy')
+      const panelChips = document.getElementById('panelChips')
+      const projectGrid = document.getElementById('projectGrid')
+
+      const state = {
+        shots: 0,
+        pocketed: 0,
+        aboutUnlocked: false,
+        skillsUnlocked: false,
+        contactUnlocked: false,
+        viewedProjects: new Set(),
+        guided: true,
+        spinX: 0,
+      }
+
+      const table = {
+        x: 84,
+        y: 54,
+        w: 1032,
+        h: 532,
+        cushion: 26,
+      }
+
+      const pockets = [
+        { x: table.x + 24, y: table.y + 24, r: 28 },
+        { x: table.x + table.w / 2, y: table.y + 16, r: 25 },
+        { x: table.x + table.w - 24, y: table.y + 24, r: 28 },
+        { x: table.x + 24, y: table.y + table.h - 24, r: 28 },
+        { x: table.x + table.w / 2, y: table.y + table.h - 16, r: 25 },
+        { x: table.x + table.w - 24, y: table.y + table.h - 24, r: 28 },
+      ]
+
+      const ballRadius = 12
+      const balls = []
+      let aiming = false
+      let aimPoint = { x: 0, y: 0 }
+      let lastTime = performance.now()
+      let accumulator = 0
+
+      function syncStats() {
+        shotsValue.textContent = String(state.shots)
+        pocketedValue.textContent = String(state.pocketed)
+        projectsValue.textContent = String(state.viewedProjects.size)
+        sectionsValue.textContent = String(
+          Number(state.aboutUnlocked) + Number(state.skillsUnlocked) + Number(state.contactUnlocked),
+        )
+
+        if (!state.guided) {
+          guidedBanner.style.display = 'none'
+          return
+        }
+
+        guidedBanner.style.display = 'block'
+
+        if (!state.aboutUnlocked) {
+          guidedBanner.textContent = 'Pocket any solid to unlock the About section.'
+        } else if (!state.skillsUnlocked) {
+          guidedBanner.textContent = 'Pocket any stripe to unlock the Skills board.'
+        } else if (state.viewedProjects.size === 0) {
+          guidedBanner.textContent = 'Pocket a numbered ball to reveal a project panel.'
+        } else if (!state.contactUnlocked) {
+          guidedBanner.textContent = 'The 8-ball is now live. Sink it to unlock Contact.'
+        } else {
+          guidedBanner.textContent = 'Rack complete. Explore the HTML sections below or reset for another run.'
+        }
+      }
+
+      function setPanel(kind, payload = {}) {
+        if (kind === 'idle') {
+          panelEyebrow.textContent = 'Ball panel'
+          panelTitle.textContent = 'Take the shot.'
+          panelCopy.textContent =
+            'Drag back from the cue ball to control power. Pocket a ball to reveal a project, unlock the portfolio sections, and clear the 8-ball after at least one project to open contact.'
+          panelChips.innerHTML = '<span class="chip">Playable demo</span><span class="chip">HUD overlay</span><span class="chip">Pool navigation</span>'
+          return
+        }
+
+        if (kind === 'project') {
+          panelEyebrow.textContent = `Ball ${payload.ball} unlocked`
+          panelTitle.textContent = payload.name
+          panelCopy.textContent = payload.desc
+          panelChips.innerHTML = payload.tech.map((item) => `<span class="chip">${item}</span>`).join('')
+          return
+        }
+
+        if (kind === 'about') {
+          panelEyebrow.textContent = 'About unlocked'
+          panelTitle.textContent = brand.name
+          panelCopy.textContent =
+            'Designing tactile, cinematic interfaces with a focus on realtime feel, graphics craft, and frame-safe performance.'
+          panelChips.innerHTML = '<span class="chip">Realtime UI</span><span class="chip">WebGL</span><span class="chip">Interaction tuning</span>'
+          return
+        }
+
+        if (kind === 'skills') {
+          panelEyebrow.textContent = 'Skills unlocked'
+          panelTitle.textContent = 'Core stack'
+          panelCopy.textContent =
+            'React, TypeScript, Three.js, performance tuning, motion systems, and accessible product architecture.'
+          panelChips.innerHTML = '<span class="chip">React</span><span class="chip">TypeScript</span><span class="chip">Three.js</span><span class="chip">Accessibility</span>'
+          return
+        }
+
+        if (kind === 'contact') {
+          panelEyebrow.textContent = '8-ball cleared'
+          panelTitle.textContent = 'Contact unlocked'
+          panelCopy.textContent =
+            'This is the finale state. In the full portfolio, this opens the contact panel after at least one project has been viewed.'
+          panelChips.innerHTML = '<span class="chip">hello@yourdomain.dev</span><span class="chip">GitHub</span><span class="chip">LinkedIn</span>'
+          return
+        }
+
+        if (kind === 'foul') {
+          panelEyebrow.textContent = 'Foul on the 8'
+          panelTitle.textContent = 'Sink a project ball first.'
+          panelCopy.textContent =
+            'The 8-ball is reserved for contact. Pocket at least one project ball, then come back for the final shot.'
+          panelChips.innerHTML = '<span class="chip">Project first</span><span class="chip">8-ball second</span>'
+        }
+      }
+
+      function renderProjectGrid() {
+        projectGrid.innerHTML = projects
+          .slice(0, 8)
+          .map(
+            (project) => `
+            <article class="card">
+              <h3>${project.ball}. ${project.name}</h3>
+              <p>${project.desc}</p>
+              <div class="chip-row">${project.tech.map((tech) => `<span class="chip">${tech}</span>`).join('')}</div>
+            </article>
+          `,
+          )
+          .join('')
+      }
+
+      function resetState() {
+        state.shots = 0
+        state.pocketed = 0
+        state.aboutUnlocked = false
+        state.skillsUnlocked = false
+        state.contactUnlocked = false
+        state.viewedProjects = new Set()
+        performanceBanner.classList.remove('show')
+        setPanel('idle')
+        syncStats()
+      }
+
+      function rackBalls() {
+        balls.length = 0
+
+        const cueBall = { number: 0, x: table.x + table.w * 0.25, y: table.y + table.h * 0.5, vx: 0, vy: 0, active: true, spin: 0 }
+        balls.push(cueBall)
+
+        const order = [1, 9, 10, 2, 8, 3, 11, 4, 15, 5, 12, 6, 13, 7, 14]
+        const startX = table.x + table.w * 0.72
+        const startY = table.y + table.h * 0.5
+        let index = 0
+
+        for (let row = 0; row < 5; row += 1) {
+          for (let col = 0; col <= row; col += 1) {
+            balls.push({
+              number: order[index],
+              x: startX + row * (ballRadius * 2.05),
+              y: startY + (col - row / 2) * (ballRadius * 2.15),
+              vx: 0,
+              vy: 0,
+              active: true,
+              spin: 0,
+            })
+            index += 1
+          }
+        }
+      }
+
+      function fullReset() {
+        resetState()
+        rackBalls()
+      }
+
+      function getCueBall() {
+        return balls[0]
+      }
+
+      function isSettled() {
+        return balls.every((ball) => !ball.active || Math.hypot(ball.vx, ball.vy) < 0.08)
+      }
+
+      function pocketBall(ball) {
+        ball.active = false
+        ball.vx = 0
+        ball.vy = 0
+        state.pocketed += 1
+
+        if (ball.number === 8) {
+          if (state.viewedProjects.size === 0) {
+            ball.active = true
+            ball.x = table.x + table.w * 0.5
+            ball.y = table.y + table.h * 0.5
+            setPanel('foul')
+          } else {
+            state.contactUnlocked = true
+            setPanel('contact')
+          }
+          syncStats()
+          return
+        }
+
+        const project = projects.find((item) => item.ball === ball.number)
+        if (project) {
+          state.viewedProjects.add(project.ball)
+          setPanel('project', project)
+        }
+
+        if (ball.number > 0 && ball.number < 8 && !state.aboutUnlocked) {
+          state.aboutUnlocked = true
+        }
+
+        if (ball.number > 8 && !state.skillsUnlocked) {
+          state.skillsUnlocked = true
+        }
+
+        syncStats()
+      }
+
+      function update(dt) {
+        for (const ball of balls) {
+          if (!ball.active) continue
+
+          if (ball.number === 0 && Math.abs(ball.spin) > 0.001) {
+            const speed = Math.hypot(ball.vx, ball.vy)
+            if (speed > 0.2) {
+              const nx = -ball.vy / speed
+              const ny = ball.vx / speed
+              ball.vx += nx * ball.spin * 0.06
+              ball.vy += ny * ball.spin * 0.06
+              ball.spin *= 0.992
+            }
+          }
+
+          ball.x += ball.vx * dt
+          ball.y += ball.vy * dt
+          ball.vx *= 0.992
+          ball.vy *= 0.992
+
+          if (Math.abs(ball.vx) < 0.03) ball.vx = 0
+          if (Math.abs(ball.vy) < 0.03) ball.vy = 0
+
+          for (const pocket of pockets) {
+            if (Math.hypot(ball.x - pocket.x, ball.y - pocket.y) < pocket.r - 1) {
+              pocketBall(ball)
+              break
+            }
+          }
+
+          if (!ball.active) continue
+
+          const left = table.x + table.cushion
+          const right = table.x + table.w - table.cushion
+          const top = table.y + table.cushion
+          const bottom = table.y + table.h - table.cushion
+
+          if (ball.x < left + ballRadius) {
+            ball.x = left + ballRadius
+            ball.vx *= -0.96
+          } else if (ball.x > right - ballRadius) {
+            ball.x = right - ballRadius
+            ball.vx *= -0.96
+          }
+
+          if (ball.y < top + ballRadius) {
+            ball.y = top + ballRadius
+            ball.vy *= -0.96
+          } else if (ball.y > bottom - ballRadius) {
+            ball.y = bottom - ballRadius
+            ball.vy *= -0.96
+          }
+        }
+
+        for (let i = 0; i < balls.length; i += 1) {
+          const a = balls[i]
+          if (!a.active) continue
+
+          for (let j = i + 1; j < balls.length; j += 1) {
+            const b = balls[j]
+            if (!b.active) continue
+
+            const dx = b.x - a.x
+            const dy = b.y - a.y
+            const dist = Math.hypot(dx, dy)
+            const minDist = ballRadius * 2
+
+            if (!dist || dist >= minDist) continue
+
+            const nx = dx / dist
+            const ny = dy / dist
+            const overlap = minDist - dist
+            a.x -= nx * overlap * 0.5
+            a.y -= ny * overlap * 0.5
+            b.x += nx * overlap * 0.5
+            b.y += ny * overlap * 0.5
+
+            const tx = -ny
+            const ty = nx
+            const dpTanA = a.vx * tx + a.vy * ty
+            const dpTanB = b.vx * tx + b.vy * ty
+            const dpNormA = a.vx * nx + a.vy * ny
+            const dpNormB = b.vx * nx + b.vy * ny
+
+            a.vx = tx * dpTanA + nx * dpNormB
+            a.vy = ty * dpTanA + ny * dpNormB
+            b.vx = tx * dpTanB + nx * dpNormA
+            b.vy = ty * dpTanB + ny * dpNormA
+          }
+        }
+      }
+
+      function drawBall(ball) {
+        ctx.save()
+        ctx.translate(ball.x, ball.y)
+
+        ctx.beginPath()
+        ctx.arc(0, 0, ballRadius, 0, Math.PI * 2)
+        ctx.fillStyle = '#ffffff'
+        ctx.fill()
+
+        if (ball.number === 8) {
+          ctx.fillStyle = '#111111'
+          ctx.beginPath()
+          ctx.arc(0, 0, ballRadius, 0, Math.PI * 2)
+          ctx.fill()
+        } else if (ball.number !== 0) {
+          ctx.fillStyle = colorMap[ball.number]
+          if (ball.number > 8) {
+            ctx.beginPath()
+            ctx.arc(0, 0, ballRadius, 0, Math.PI * 2)
+            ctx.fillStyle = '#ffffff'
+            ctx.fill()
+            ctx.fillStyle = colorMap[ball.number]
+            ctx.fillRect(-ballRadius, -5, ballRadius * 2, 10)
+          } else {
+            ctx.beginPath()
+            ctx.arc(0, 0, ballRadius, 0, Math.PI * 2)
+            ctx.fill()
+          }
+        }
+
+        if (ball.number !== 0) {
+          ctx.beginPath()
+          ctx.arc(0, 0, 6.2, 0, Math.PI * 2)
+          ctx.fillStyle = '#f8f3e8'
+          ctx.fill()
+          ctx.fillStyle = '#111111'
+          ctx.font = '700 8px Arial'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(String(ball.number), 0, 0.7)
+        } else {
+          ctx.beginPath()
+          ctx.arc(-3.3, -4.3, 4.2, 0, Math.PI * 2)
+          ctx.fillStyle = 'rgba(255,255,255,0.36)'
+          ctx.fill()
+        }
+
+        ctx.restore()
+      }
+
+      function drawTable() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+        ctx.fillStyle = '#241912'
+        roundRect(ctx, 44, 20, 1112, 600, 34)
+        ctx.fill()
+
+        ctx.fillStyle = '#0f6b4a'
+        roundRect(ctx, table.x, table.y, table.w, table.h, 24)
+        ctx.fill()
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)'
+        ctx.lineWidth = 2
+        roundRect(ctx, table.x + 2, table.y + 2, table.w - 4, table.h - 4, 22)
+        ctx.stroke()
+
+        for (const pocket of pockets) {
+          ctx.beginPath()
+          ctx.arc(pocket.x, pocket.y, pocket.r, 0, Math.PI * 2)
+          ctx.fillStyle = '#020202'
+          ctx.fill()
+        }
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.13)'
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(table.x + table.w * 0.24, table.y + 24)
+        ctx.lineTo(table.x + table.w * 0.24, table.y + table.h - 24)
+        ctx.stroke()
+
+        const cueBall = getCueBall()
+        if (aiming && cueBall.active && isSettled()) {
+          const dx = cueBall.x - aimPoint.x
+          const dy = cueBall.y - aimPoint.y
+          const power = Math.min(160, Math.hypot(dx, dy))
+          const dirX = dx / (power || 1)
+          const dirY = dy / (power || 1)
+
+          ctx.beginPath()
+          ctx.moveTo(cueBall.x, cueBall.y)
+          ctx.lineTo(cueBall.x + dirX * 160, cueBall.y + dirY * 160)
+          ctx.strokeStyle = 'rgba(243, 217, 162, 0.75)'
+          ctx.lineWidth = 2
+          ctx.stroke()
+
+          ctx.beginPath()
+          ctx.moveTo(cueBall.x - dirX * 36, cueBall.y - dirY * 36)
+          ctx.lineTo(cueBall.x - dirX * (70 + power * 0.4), cueBall.y - dirY * (70 + power * 0.4))
+          ctx.strokeStyle = '#d7bf9d'
+          ctx.lineWidth = 7
+          ctx.lineCap = 'round'
+          ctx.stroke()
+        }
+
+        for (const ball of balls) {
+          if (ball.active) drawBall(ball)
+        }
+      }
+
+      function roundRect(context, x, y, width, height, radius) {
+        context.beginPath()
+        context.moveTo(x + radius, y)
+        context.arcTo(x + width, y, x + width, y + height, radius)
+        context.arcTo(x + width, y + height, x, y + height, radius)
+        context.arcTo(x, y + height, x, y, radius)
+        context.arcTo(x, y, x + width, y, radius)
+        context.closePath()
+      }
+
+      function pointerPosition(event) {
+        const rect = canvas.getBoundingClientRect()
+        const scaleX = canvas.width / rect.width
+        const scaleY = canvas.height / rect.height
+        return {
+          x: (event.clientX - rect.left) * scaleX,
+          y: (event.clientY - rect.top) * scaleY,
+        }
+      }
+
+      canvas.addEventListener('pointerdown', (event) => {
+        if (!isSettled()) return
+        const cueBall = getCueBall()
+        if (!cueBall.active) return
+        aiming = true
+        aimPoint = pointerPosition(event)
+      })
+
+      canvas.addEventListener('pointermove', (event) => {
+        if (!aiming) return
+        aimPoint = pointerPosition(event)
+      })
+
+      window.addEventListener('pointerup', () => {
+        if (!aiming) return
+        aiming = false
+
+        const cueBall = getCueBall()
+        if (!cueBall.active || !isSettled()) return
+
+        const dx = cueBall.x - aimPoint.x
+        const dy = cueBall.y - aimPoint.y
+        const power = Math.min(210, Math.hypot(dx, dy))
+        if (power < 8) return
+
+        const dirX = dx / power
+        const dirY = dy / power
+        cueBall.vx = dirX * power * 0.065
+        cueBall.vy = dirY * power * 0.065
+        cueBall.spin = Number(document.getElementById('spinSlider').value) * 2.2
+        state.shots += 1
+        syncStats()
+
+        if (state.shots > 4) {
+          performanceBanner.classList.add('show')
+        }
+      })
+
+      function loop(now) {
+        const delta = Math.min(32, now - lastTime)
+        lastTime = now
+        accumulator += delta
+
+        while (accumulator >= 1000 / 120) {
+          update(1)
+          accumulator -= 1000 / 120
+        }
+
+        drawTable()
+        requestAnimationFrame(loop)
+      }
+
+      document.getElementById('resetRack').addEventListener('click', fullReset)
+      document.getElementById('scrollAccessibility').addEventListener('click', () =>
+        document.getElementById('accessibility-mode').scrollIntoView({ behavior: 'smooth' }),
+      )
+      document.getElementById('openAbout').addEventListener('click', () => setPanel('about'))
+      document.getElementById('openSkills').addEventListener('click', () => setPanel('skills'))
+      document.getElementById('openContact').addEventListener('click', () => {
+        if (state.viewedProjects.size > 0) setPanel('contact')
+        else setPanel('foul')
+      })
+      document.getElementById('scrollProjects').addEventListener('click', () =>
+        document.getElementById('projects').scrollIntoView({ behavior: 'smooth' }),
+      )
+      document.getElementById('toggleGuided').addEventListener('click', (event) => {
+        state.guided = !state.guided
+        event.currentTarget.textContent = state.guided ? 'Hide Guided Mode' : 'Show Guided Mode'
+        syncStats()
+      })
+      document.getElementById('dismissPerf').addEventListener('click', () => performanceBanner.classList.remove('show'))
+
+      renderProjectGrid()
+      fullReset()
+      requestAnimationFrame(loop)
+    </script>
+  </body>
+</html>
