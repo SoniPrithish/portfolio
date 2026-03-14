@@ -258,7 +258,7 @@
       .table-shell {
         position: relative;
         width: 100%;
-        aspect-ratio: 1.95 / 1;
+        aspect-ratio: 1.875 / 1;
         border-radius: 34px;
         border: 1px solid var(--line);
         overflow: hidden;
@@ -745,6 +745,16 @@
           panelCopy.textContent =
             'The 8-ball is reserved for contact. Pocket at least one project ball, then come back for the final shot.'
           panelChips.innerHTML = '<span class="chip">Project first</span><span class="chip">8-ball second</span>'
+          return
+        }
+
+        if (kind === 'foul-cue') {
+          panelEyebrow.textContent = 'Scratch'
+          panelTitle.textContent = 'Cue ball pocketed.'
+          panelCopy.textContent =
+            'You scratched! The cue ball has been returned to the starting position. Keep going.'
+          panelChips.innerHTML = '<span class="chip">Foul</span><span class="chip">Try again</span>'
+          return
         }
       }
 
@@ -812,7 +822,7 @@
       }
 
       function isSettled() {
-        return balls.every((ball) => !ball.active || Math.hypot(ball.vx, ball.vy) < 0.08)
+        return balls.every((ball) => !ball.active || Math.hypot(ball.vx, ball.vy) < 0.12)
       }
 
       function pocketBall(ball) {
@@ -820,6 +830,16 @@
         ball.vx = 0
         ball.vy = 0
         state.pocketed += 1
+
+        if (ball.number === 0) {
+          ball.active = true
+          ball.x = table.x + table.w * 0.25
+          ball.y = table.y + table.h * 0.5
+          state.pocketed -= 1
+          setPanel('foul-cue')
+          syncStats()
+          return
+        }
 
         if (ball.number === 8) {
           if (state.viewedProjects.size === 0) {
@@ -869,11 +889,11 @@
 
           ball.x += ball.vx * dt
           ball.y += ball.vy * dt
-          ball.vx *= 0.992
-          ball.vy *= 0.992
+          ball.vx *= 0.985
+          ball.vy *= 0.985
 
-          if (Math.abs(ball.vx) < 0.03) ball.vx = 0
-          if (Math.abs(ball.vy) < 0.03) ball.vy = 0
+          if (Math.abs(ball.vx) < 0.06) ball.vx = 0
+          if (Math.abs(ball.vy) < 0.06) ball.vy = 0
 
           for (const pocket of pockets) {
             if (Math.hypot(ball.x - pocket.x, ball.y - pocket.y) < pocket.r - 1) {
@@ -948,10 +968,16 @@
         ctx.save()
         ctx.translate(ball.x, ball.y)
 
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)'
+        ctx.shadowBlur = 6
+        ctx.shadowOffsetY = 3
+
         ctx.beginPath()
         ctx.arc(0, 0, ballRadius, 0, Math.PI * 2)
         ctx.fillStyle = '#ffffff'
         ctx.fill()
+
+        ctx.shadowColor = 'transparent'
 
         if (ball.number === 8) {
           ctx.fillStyle = '#111111'
@@ -1001,11 +1027,14 @@
         roundRect(ctx, 44, 20, 1112, 600, 34)
         ctx.fill()
 
-        ctx.fillStyle = '#0f6b4a'
+        const grad = ctx.createRadialGradient(table.x + table.w/2, table.y + table.h/2, 0, table.x + table.w/2, table.y + table.h/2, table.w * 0.8)
+        grad.addColorStop(0, '#188c5a')
+        grad.addColorStop(1, '#0a492f')
+        ctx.fillStyle = grad
         roundRect(ctx, table.x, table.y, table.w, table.h, 24)
         ctx.fill()
 
-        ctx.strokeStyle = 'rgba(255,255,255,0.06)'
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)'
         ctx.lineWidth = 2
         roundRect(ctx, table.x + 2, table.y + 2, table.w - 4, table.h - 4, 22)
         ctx.stroke()
@@ -1028,7 +1057,7 @@
         if (aiming && cueBall.active && isSettled()) {
           const dx = cueBall.x - aimPoint.x
           const dy = cueBall.y - aimPoint.y
-          const power = Math.min(160, Math.hypot(dx, dy))
+          const power = Math.min(300, Math.hypot(dx, dy))
           const dirX = dx / (power || 1)
           const dirY = dy / (power || 1)
 
@@ -1095,14 +1124,14 @@
 
         const dx = cueBall.x - aimPoint.x
         const dy = cueBall.y - aimPoint.y
-        const power = Math.min(210, Math.hypot(dx, dy))
-        if (power < 8) return
+        const power = Math.min(300, Math.hypot(dx, dy))
+        if (power < 10) return
 
         const dirX = dx / power
         const dirY = dy / power
-        cueBall.vx = dirX * power * 0.065
-        cueBall.vy = dirY * power * 0.065
-        cueBall.spin = Number(document.getElementById('spinSlider').value) * 2.2
+        cueBall.vx = dirX * power * 0.08
+        cueBall.vy = dirY * power * 0.08
+        cueBall.spin = Number(document.getElementById('spinSlider').value) * 2.5
         state.shots += 1
         syncStats()
 
